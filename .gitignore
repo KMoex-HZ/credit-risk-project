@@ -1,0 +1,25 @@
+# Data (terlalu besar untuk Git)
+data/raw/
+data/processed/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# MLflow
+mlflow.db
+mlruns/
+
+# Environment
+venv/
+.venv/
+*.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
