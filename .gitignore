@@ -1,6 +1,7 @@
 # Data (terlalu besar untuk Git)
 data/raw/
 data/processed/
+tableau_data/
 
 # Python
 __pycache__/
