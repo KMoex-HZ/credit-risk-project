@@ -97,7 +97,7 @@ This project is built on the **Home Credit Default Risk** dataset, which consist
 The Tableau dashboard provides an interactive overview of applicant characteristics, credit portfolio quality, model performance, risk segmentation, and prediction results, enabling users to explore the model from both business and analytical perspectives.
 
 <p align="center">
-  <img src="pict/credit_risk_dashboard.png" alt="Credit Risk Dashboard" width="950">
+  <img src="pict/credit_risk_dashboards.png" alt="Credit Risk Dashboard" width="950">
 </p>
 
 <p align="center">
