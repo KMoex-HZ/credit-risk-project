@@ -2,13 +2,14 @@ import pandas as pd
 import numpy as np
 
 # ----------------------------------------------------
-# 1. FITUR DARI TABEL BUREAU (BI CHECKING LUAR)
+# 1. FEATURES FROM THE BUREAU TABLE (EXTERNAL CREDIT BUREAU HISTORY)
 # ----------------------------------------------------
 def engineer_bureau_features(bureau):
     bureau = bureau.copy()
+
     bureau['FLAG_OVERDUE'] = (bureau['CREDIT_DAY_OVERDUE'] > 0).astype(int)
     bureau['FLAG_BAD_DEBT'] = (bureau['CREDIT_ACTIVE'] == 'Bad debt').astype(int)
-    
+
     agg = bureau.groupby('SK_ID_CURR').agg(
         BUREAU_COUNT_LOANS=('SK_ID_BUREAU', 'count'),
         BUREAU_COUNT_ACTIVE=('CREDIT_ACTIVE', lambda x: (x == 'Active').sum()),
@@ -25,30 +26,62 @@ def engineer_bureau_features(bureau):
         BUREAU_MAX_CNT_PROLONG=('CNT_CREDIT_PROLONG', 'max'),
         BUREAU_MEAN_DAYS_CREDIT=('DAYS_CREDIT', 'mean'),
     ).reset_index()
-    
-    agg['BUREAU_RATIO_ACTIVE'] = agg['BUREAU_COUNT_ACTIVE'] / agg['BUREAU_COUNT_LOANS']
-    agg['BUREAU_DEBT_CREDIT_RATIO'] = agg['BUREAU_TOTAL_CREDIT_DEBT'] / agg['BUREAU_TOTAL_CREDIT_SUM']
-    agg['BUREAU_DEBT_CREDIT_RATIO'] = agg['BUREAU_DEBT_CREDIT_RATIO'].replace([np.inf, -np.inf], np.nan)
-    agg['BUREAU_RATIO_OVERDUE'] = agg['BUREAU_SUM_OVERDUE_COUNT'] / agg['BUREAU_COUNT_LOANS']
-    
+
+    agg['BUREAU_RATIO_ACTIVE'] = (
+        agg['BUREAU_COUNT_ACTIVE'] / agg['BUREAU_COUNT_LOANS']
+    )
+
+    agg['BUREAU_DEBT_CREDIT_RATIO'] = (
+        agg['BUREAU_TOTAL_CREDIT_DEBT'] / agg['BUREAU_TOTAL_CREDIT_SUM']
+    )
+
+    agg['BUREAU_DEBT_CREDIT_RATIO'] = agg['BUREAU_DEBT_CREDIT_RATIO'].replace(
+        [np.inf, -np.inf], np.nan
+    )
+
+    agg['BUREAU_RATIO_OVERDUE'] = (
+        agg['BUREAU_SUM_OVERDUE_COUNT'] / agg['BUREAU_COUNT_LOANS']
+    )
+
     return agg
 
+
 # ----------------------------------------------------
-# 2. FITUR DARI TABEL PREVIOUS APPLICATION (RIWAYAT INTERNAL)
+# 2. FEATURES FROM THE PREVIOUS_APPLICATION TABLE
+#    (INTERNAL APPLICATION HISTORY)
 # ----------------------------------------------------
 def engineer_previous_application_features(prev_app):
     prev_app = prev_app.copy()
-    days_cols = ['DAYS_FIRST_DRAWING', 'DAYS_FIRST_DUE', 'DAYS_LAST_DUE_1ST_VERSION', 
-                 'DAYS_LAST_DUE', 'DAYS_TERMINATION']
+
+    days_cols = [
+        'DAYS_FIRST_DRAWING',
+        'DAYS_FIRST_DUE',
+        'DAYS_LAST_DUE_1ST_VERSION',
+        'DAYS_LAST_DUE',
+        'DAYS_TERMINATION'
+    ]
+
+    # Replace placeholder values with NaN
     for col in days_cols:
         prev_app[col] = prev_app[col].replace(365243, np.nan)
-    
-    prev_app['FLAG_APPROVED'] = (prev_app['NAME_CONTRACT_STATUS'] == 'Approved').astype(int)
-    prev_app['FLAG_REFUSED'] = (prev_app['NAME_CONTRACT_STATUS'] == 'Refused').astype(int)
-    
-    prev_app['APPLICATION_CREDIT_RATIO'] = prev_app['AMT_CREDIT'] / prev_app['AMT_APPLICATION']
-    prev_app['APPLICATION_CREDIT_RATIO'] = prev_app['APPLICATION_CREDIT_RATIO'].replace([np.inf, -np.inf], np.nan)
-    
+
+    prev_app['FLAG_APPROVED'] = (
+        prev_app['NAME_CONTRACT_STATUS'] == 'Approved'
+    ).astype(int)
+
+    prev_app['FLAG_REFUSED'] = (
+        prev_app['NAME_CONTRACT_STATUS'] == 'Refused'
+    ).astype(int)
+
+    prev_app['APPLICATION_CREDIT_RATIO'] = (
+        prev_app['AMT_CREDIT'] / prev_app['AMT_APPLICATION']
+    )
+
+    prev_app['APPLICATION_CREDIT_RATIO'] = (
+        prev_app['APPLICATION_CREDIT_RATIO']
+        .replace([np.inf, -np.inf], np.nan)
+    )
+
     agg = prev_app.groupby('SK_ID_CURR').agg(
         PREV_COUNT_APPLICATIONS=('SK_ID_PREV', 'count'),
         PREV_COUNT_APPROVED=('FLAG_APPROVED', 'sum'),
@@ -61,23 +94,47 @@ def engineer_previous_application_features(prev_app):
         PREV_MEAN_DAYS_LAST_DUE=('DAYS_LAST_DUE', 'mean'),
         PREV_MEAN_CNT_PAYMENT=('CNT_PAYMENT', 'mean'),
     ).reset_index()
-    
-    agg['PREV_RATIO_REFUSED'] = agg['PREV_COUNT_REFUSED'] / agg['PREV_COUNT_APPLICATIONS']
-    agg['PREV_RATIO_APPROVED'] = agg['PREV_COUNT_APPROVED'] / agg['PREV_COUNT_APPLICATIONS']
-    
+
+    agg['PREV_RATIO_REFUSED'] = (
+        agg['PREV_COUNT_REFUSED'] / agg['PREV_COUNT_APPLICATIONS']
+    )
+
+    agg['PREV_RATIO_APPROVED'] = (
+        agg['PREV_COUNT_APPROVED'] / agg['PREV_COUNT_APPLICATIONS']
+    )
+
     return agg
 
+
 # ----------------------------------------------------
-# 3. FITUR DARI TABEL INSTALLMENTS PAYMENTS (RIWAYAT CICILAN BULANAN)
+# 3. FEATURES FROM THE INSTALLMENTS_PAYMENTS TABLE
+#    (MONTHLY REPAYMENT HISTORY)
 # ----------------------------------------------------
 def engineer_installments_features(installments):
     installments = installments.copy()
-    installments['FLAG_NOT_PAID'] = installments['AMT_PAYMENT'].isnull().astype(int)
-    installments['DAYS_LATE'] = installments['DAYS_ENTRY_PAYMENT'] - installments['DAYS_INSTALMENT']
-    installments['AMT_SHORTFALL'] = installments['AMT_INSTALMENT'] - installments['AMT_PAYMENT']
-    installments['FLAG_LATE'] = (installments['DAYS_LATE'] > 0).astype(int)
-    installments['FLAG_SHORTFALL'] = (installments['AMT_SHORTFALL'] > 0).astype(int)
-    
+
+    installments['FLAG_NOT_PAID'] = (
+        installments['AMT_PAYMENT'].isnull()
+    ).astype(int)
+
+    installments['DAYS_LATE'] = (
+        installments['DAYS_ENTRY_PAYMENT'] -
+        installments['DAYS_INSTALMENT']
+    )
+
+    installments['AMT_SHORTFALL'] = (
+        installments['AMT_INSTALMENT'] -
+        installments['AMT_PAYMENT']
+    )
+
+    installments['FLAG_LATE'] = (
+        installments['DAYS_LATE'] > 0
+    ).astype(int)
+
+    installments['FLAG_SHORTFALL'] = (
+        installments['AMT_SHORTFALL'] > 0
+    ).astype(int)
+
     agg = installments.groupby('SK_ID_CURR').agg(
         INST_COUNT=('SK_ID_PREV', 'count'),
         INST_COUNT_NOT_PAID=('FLAG_NOT_PAID', 'sum'),
@@ -90,20 +147,32 @@ def engineer_installments_features(installments):
         INST_MEAN_AMT_INSTALMENT=('AMT_INSTALMENT', 'mean'),
         INST_MEAN_AMT_PAYMENT=('AMT_PAYMENT', 'mean'),
     ).reset_index()
-    
-    agg['INST_RATIO_LATE'] = agg['INST_SUM_FLAG_LATE'] / agg['INST_COUNT']
-    agg['INST_RATIO_SHORTFALL'] = agg['INST_SUM_FLAG_SHORTFALL'] / agg['INST_COUNT']
-    agg['INST_RATIO_NOT_PAID'] = agg['INST_COUNT_NOT_PAID'] / agg['INST_COUNT']
-    
+
+    agg['INST_RATIO_LATE'] = (
+        agg['INST_SUM_FLAG_LATE'] / agg['INST_COUNT']
+    )
+
+    agg['INST_RATIO_SHORTFALL'] = (
+        agg['INST_SUM_FLAG_SHORTFALL'] / agg['INST_COUNT']
+    )
+
+    agg['INST_RATIO_NOT_PAID'] = (
+        agg['INST_COUNT_NOT_PAID'] / agg['INST_COUNT']
+    )
+
     return agg
 
+
 # ----------------------------------------------------
-# 4. FITUR DARI TABEL POS CASH BALANCE
+# 4. FEATURES FROM THE POS_CASH_BALANCE TABLE
 # ----------------------------------------------------
 def engineer_pos_cash_features(pos_cash):
     pos_cash = pos_cash.copy()
-    pos_cash['FLAG_DPD'] = (pos_cash['SK_DPD'] > 0).astype(int)
-    
+
+    pos_cash['FLAG_DPD'] = (
+        pos_cash['SK_DPD'] > 0
+    ).astype(int)
+
     agg = pos_cash.groupby('SK_ID_CURR').agg(
         POS_COUNT=('SK_ID_PREV', 'count'),
         POS_MEAN_CNT_INSTALMENT_FUTURE=('CNT_INSTALMENT_FUTURE', 'mean'),
@@ -113,21 +182,35 @@ def engineer_pos_cash_features(pos_cash):
         POS_MEAN_SK_DPD_DEF=('SK_DPD_DEF', 'mean'),
         POS_MAX_SK_DPD_DEF=('SK_DPD_DEF', 'max'),
     ).reset_index()
-    
-    agg['POS_RATIO_DPD'] = agg['POS_SUM_FLAG_DPD'] / agg['POS_COUNT']
-    
+
+    agg['POS_RATIO_DPD'] = (
+        agg['POS_SUM_FLAG_DPD'] / agg['POS_COUNT']
+    )
+
     return agg
 
+
 # ----------------------------------------------------
-# 5. FITUR DARI TABEL CREDIT CARD BALANCE (JUARA KITA!)
+# 5. FEATURES FROM THE CREDIT_CARD_BALANCE TABLE
 # ----------------------------------------------------
 def engineer_credit_card_features(credit_card):
     credit_card = credit_card.copy()
-    credit_card['FLAG_DPD'] = (credit_card['SK_DPD'] > 0).astype(int)
-    
-    credit_card['UTILIZATION_RATIO'] = credit_card['AMT_BALANCE'] / credit_card['AMT_CREDIT_LIMIT_ACTUAL']
-    credit_card['UTILIZATION_RATIO'] = credit_card['UTILIZATION_RATIO'].replace([np.inf, -np.inf], np.nan)
-    
+
+    credit_card['FLAG_DPD'] = (
+        credit_card['SK_DPD'] > 0
+    ).astype(int)
+
+    # Credit utilization ratio
+    credit_card['UTILIZATION_RATIO'] = (
+        credit_card['AMT_BALANCE'] /
+        credit_card['AMT_CREDIT_LIMIT_ACTUAL']
+    )
+
+    credit_card['UTILIZATION_RATIO'] = (
+        credit_card['UTILIZATION_RATIO']
+        .replace([np.inf, -np.inf], np.nan)
+    )
+
     agg = credit_card.groupby('SK_ID_CURR').agg(
         CC_COUNT=('SK_ID_PREV', 'count'),
         CC_MEAN_AMT_BALANCE=('AMT_BALANCE', 'mean'),
@@ -140,8 +223,9 @@ def engineer_credit_card_features(credit_card):
         CC_MAX_SK_DPD=('SK_DPD', 'max'),
         CC_SUM_FLAG_DPD=('FLAG_DPD', 'sum'),
     ).reset_index()
-    
-    agg['CC_RATIO_DPD'] = agg['CC_SUM_FLAG_DPD'] / agg['CC_COUNT']
-    
+
+    agg['CC_RATIO_DPD'] = (
+        agg['CC_SUM_FLAG_DPD'] / agg['CC_COUNT']
+    )
+
     return agg
-    

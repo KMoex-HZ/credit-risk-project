@@ -46,7 +46,7 @@ def predict(application: LoanApplication):
     try:
         df = pd.DataFrame([application.features])
 
-        # --- Anomaly detection (butuh AMT_GOODS_PRICE) ---
+        # --- Anomaly detection (requires AMT_GOODS_PRICE) ---
         df_anomaly = df.copy()
         if 'AMT_GOODS_PRICE' not in df_anomaly.columns:
             df_anomaly['AMT_GOODS_PRICE'] = df_anomaly['AMT_CREDIT']
@@ -57,24 +57,24 @@ def predict(application: LoanApplication):
         anomaly_score = iso_forest.decision_function(X_iso_scaled)[0]
         is_anomaly = bool(anomaly_pred == -1)
 
-        # --- Prediksi PD pakai XGBoost ---
+        # --- Probability of Default (PD) prediction using XGBoost ---
         df_xgb = df.copy()
         if 'AMT_GOODS_PRICE' in df_xgb.columns:
             df_xgb = df_xgb.drop(columns=['AMT_GOODS_PRICE'])
 
-        # Paksa kolom kategorikal pakai daftar kategori PERSIS sama seperti training
+        # Force categorical columns to use the EXACT same categories as during training
         for col, cats in categories_dict.items():
             if col in df_xgb.columns:
                 df_xgb[col] = pd.Categorical(df_xgb[col], categories=cats)
 
-        # Fix kolom boolean yang datang sebagai string dari JSON
+        # Convert boolean columns received as strings from JSON
         if 'DAYS_EMPLOYED_ANOMALY' in df_xgb.columns:
             df_xgb['DAYS_EMPLOYED_ANOMALY'] = df_xgb['DAYS_EMPLOYED_ANOMALY'].astype(str).map(
                 {'True': True, 'False': False}
             ).astype(bool)
 
-        # Paksa enable_categorical eksplisit, karena setting ini kadang tidak
-        # ter-preserve saat model di-load ulang dari file .pkl
+        # Explicitly enable categorical support because this setting
+        # may not be preserved when the model is reloaded from a .pkl file
         from xgboost import DMatrix
         dmatrix = DMatrix(df_xgb, enable_categorical=True)
         prob_default = xgb_model.get_booster().predict(dmatrix)[0]
