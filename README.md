@@ -17,6 +17,7 @@ This project is built on the **Home Credit Default Risk** dataset, which consist
 <p align="center">
   <em>Figure 1. Relational schema of the Home Credit Default Risk dataset.</em>
 </p>
+
 ---
 
 ## Pipeline Architecture
